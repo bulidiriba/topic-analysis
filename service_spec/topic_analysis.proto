@@ -1,8 +1,6 @@
 syntax = "proto3";
 
 
-
-
 message PLSARequest {
 
     repeated string docs = 1;
@@ -24,19 +22,29 @@ message PLSAResponse{
     string message = 2;
     string handle = 3;
 
-
 }
 
+message LDARequest {
 
+    repeated string docs = 1;
+    sint64 num_topics = 2;
+    sint64 maxiter = 3;
+}
 
+message LDAResponse{
 
+    bool status = 1;
+    string message = 2;
+    string handle = 3;
+
+}
 
 ///// Topic analysis Services
 
 service TopicAnalysis {
 
-
     rpc PLSA (PLSARequest) returns (PLSAResponse) {};
+    rpc LDA (LDARequest) returns (LDAResponse) {};
 
 
 }
