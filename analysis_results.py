@@ -10,6 +10,7 @@ import logging
 
 sys.path.append(str(pathlib.Path(os.path.abspath('')).parents[0])+'/topic-analysis/plsa-service/plsa')
 sys.path.append(str(pathlib.Path(os.path.abspath('')).parents[0])+'/topic-analysis/lda-service')
+sys.path.append(str(pathlib.Path(os.path.abspath('')).parents[0])+'/topic-analysis/lsa-service')
 
 from flask import Flask, jsonify
 from flask import make_response
@@ -46,6 +47,8 @@ def results():
             parameters_path = str(pathlib.Path(os.path.abspath('')).parents[0]) + '/appData/plsa/' + 'plsa-parameters/' + handle + '/'
         elif (method_type == 'lta'):
             parameters_path = str(pathlib.Path(os.path.abspath('')).parents[0]) + '/appData/lda/' + 'lda-parameters/' + handle + '/'
+        elif (method_type == 'lsa'):
+            parameters_path = str(pathlib.Path(os.path.abspath('')).parents[0]) + '/appData/lsa/' + 'lsa-parameters/' + handle + '/'
         else: pass
 
         #print(parameters_path)

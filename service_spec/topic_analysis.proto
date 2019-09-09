@@ -28,10 +28,32 @@ message LDARequest {
 
     repeated string docs = 1;
     sint64 num_topics = 2;
-    sint64 maxiter = 3;
+    sint64 topic_divider = 3;
+    sint64 maxiter = 4;
+    double beta = 5;
 }
 
 message LDAResponse{
+
+    bool status = 1;
+    string message = 2;
+    string handle = 3;
+
+}
+
+message LSARequest {
+
+    repeated string docs = 1;
+    sint64 num_topics = 2;
+    sint64 num_words = 3;
+    sint64 power_iters=4;
+    bool distributed = 5;
+    bool onepass = 6;
+    sint64 chunksize = 7;
+
+}
+
+message LSAResponse{
 
     bool status = 1;
     string message = 2;
@@ -45,7 +67,7 @@ service TopicAnalysis {
 
     rpc PLSA (PLSARequest) returns (PLSAResponse) {};
     rpc LDA (LDARequest) returns (LDAResponse) {};
-
+    rpc LSA (LSARequest) returns (LSAResponse) {};
 
 }
 

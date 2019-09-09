@@ -16,22 +16,25 @@ from nltk.tokenize import sent_tokenize
 SLEEP_TIME = 86400 # One day
 
 
+sys.path.append(str(pathlib.Path(os.path.abspath('')).parents[0])+'/topic-analysis/plsa-service/preprocessing')
 sys.path.append(str(pathlib.Path(os.path.abspath('')).parents[0])+'/topic-analysis/plsa-service/plsa')
 sys.path.append(str(pathlib.Path(os.path.abspath('')).parents[0])+'/topic-analysis/lda-service')
-sys.path.append(str(pathlib.Path(os.path.abspath('')).parents[0])+'/topic-analysis/plsa-service/preprocessing')
+sys.path.append(str(pathlib.Path(os.path.abspath('')).parents[0])+'/topic-analysis/lsa-service')
+
 
 print(sys.path)
 
 import plsa_wrapper
 import lda_wrapper
+import lsa_wrapper
 import threading
 import multiprocessing as mp
 
-#from service_spec import topic_analysis_pb2
-#from service_spec import topic_analysis_pb2_grpc
+from service_spec import topic_analysis_pb2
+from service_spec import topic_analysis_pb2_grpc
 
-import topic_analysis_pb2
-import topic_analysis_pb2_grpc
+#import topic_analysis_pb2
+#import topic_analysis_pb2_grpc
 
 
 class TopicAnalysis(topic_analysis_pb2_grpc.TopicAnalysisServicer):
@@ -175,6 +178,66 @@ class TopicAnalysis(topic_analysis_pb2_grpc.TopicAnalysisServicer):
 
             raise grpc.RpcError(grpc.StatusCode.UNKNOWN, str(e))
 
+    def LSA(self, request, context):
+        print('>>>>>>>>>>>>>>In endpoint lsa')
+        print(time.strftime("%c"))
+
+        docs = request.docs
+        num_topics = request.num_topics
+        num_words = request.num_words
+        chunksize = request.chunksize
+        distributed = request.distributed
+        onepass = request.onepass
+        power_iters = request.power_iters
+        param_error = False
+        message = ''
+        try :
+            if len(docs) < 1:
+                message = 'Length of docs should be at one'
+                param_error =True
+
+            if len(docs) == 1:
+                docs = sent_tokenize(docs[0])
+
+            if param_error:
+                print(time.strftime("%c"))
+                print('Waiting for next call on port 5000.')
+                raise grpc.RpcError(grpc.StatusCode.UNKNOWN, message)
+        except Exception as e:
+
+            logging.exception("message")
+
+            print(time.strftime("%c"))
+            print('Waiting for next call on port 5000.')
+
+            raise grpc.RpcError(grpc.StatusCode.UNKNOWN, str(e))
+        try:
+
+            unique_folder_naming = str(datetime.datetime.now()).replace(':', '-').replace('.', '-') + '^' + str(random.randint(100000000000, 999999999999)) + '_lsa/'
+
+            # thread1 = threading.Thread(target=generate_topics_plsa, args=(docs,unique_folder_naming,num_topics,topic_divider,maxiter))
+            p1 = mp.Process(target=generate_topics_lsa, args=(docs,unique_folder_naming,num_topics))
+
+            p1.start()
+
+            resp = topic_analysis_pb2.LSAResponse(status=True, message='success', handle=unique_folder_naming[:-1].replace('-','e').replace(' ','d').replace('^','y'))
+
+            print('\n')
+            print('status:',resp.status)
+            print('message:',resp.message)
+            print('Waiting for next call on port 5000.')
+            print('\n')
+
+            return resp
+        except Exception as e:
+
+            logging.exception("message")
+
+            print(time.strftime("%c"))
+            print('Waiting for next call on port 5000.')
+
+            raise grpc.RpcError(grpc.StatusCode.UNKNOWN, str(e))
+
 def generate_topics_plsa(docs,unique_folder_naming,num_topics,topic_divider,maxiter,beta):
 
     # Put try catch here and add status
@@ -232,6 +295,33 @@ def generate_topics_lda(docs,unique_folder_naming,num_topics,topic_divider,maxit
         logging.exception("message")
 
         with open(s.lda_parameters_path+unique_folder_naming+'status.txt','w') as f:
+            f.write('Failed.')
+            f.write('\n')
+            f.write(str(e))
+
+def generate_topics_lsa(docs,unique_folder_naming,num_topics):
+
+    # Put try catch here and add status
+    #path = str(pathlib.Path(os.path.abspath('')).parents[0])+'/appData/misc/topic_analysis.json'
+    s = lsa_wrapper.LSA_wrapper(docs)
+
+    try:
+        os.mkdir(s.lsa_parameters_path+unique_folder_naming)
+        # 1/0
+        with open(s.lsa_parameters_path+unique_folder_naming+'status.txt','w') as f:
+            f.write('Analysis started.')
+            f.write('\n')
+
+        s.unique_folder_naming = unique_folder_naming
+        s.num_topics = num_topics
+        s.write_to_txt()
+        s.generate_topics_gensim(num_topics=num_topics)
+
+    except Exception as e:
+
+        logging.exception("message")
+
+        with open(s.lsa_parameters_path+unique_folder_naming+'status.txt','w') as f:
             f.write('Failed.')
             f.write('\n')
             f.write(str(e))
