@@ -31,9 +31,7 @@ logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=lo
 import warnings
 warnings.filterwarnings("ignore",category=DeprecationWarning)
 
-# sys.path.append(str(pathlib.Path(os.path.abspath('')).parents[0])+'/plsa-service/plsa')
 sys.path.append(str(pathlib.Path(os.path.abspath('')).parents[0])+'/plsa-service/preprocessing')
-# sys.path.append(str(pathlib.Path(os.path.abspath('')).parents[1])+'/plsa-service/plsa')
 sys.path.append(str(pathlib.Path(os.path.abspath('')).parents[1])+'/topic-analysis/plsa-service/preprocessing')
 
 # import example_plsa as pplsa
@@ -63,15 +61,6 @@ class LDA_wrapper:
 
         # self.messages
         self.unique_folder_naming = str(datetime.datetime.now()).replace(':','-').replace('.','-') + '^' + str(random.randint(100000000000, 999999999999)) + '/'
-        #os.mkdir(self.lda_parameters_path + self.unique_folder_naming)
-        #os.mkdir(self.extracted_folder+self.unique_folder_naming)
-        
-        #pclean.output_dir = self.output_dir + self.unique_folder_naming
-        #os.mkdir(pclean.output_dir)
-
-        # specific file
-        #self.status_file = self.lda_parameters_path + self.unique_folder_naming + 'status.txt'
-        
         self.num_topics = None
         self.topic_divider = None
         self.max_iter = None
@@ -88,7 +77,6 @@ class LDA_wrapper:
         contents_dict = {}
         file = self.extracted_folder + self.unique_folder_naming + 'extracted' + '.json'
 
-        '''
         for i in range(len(self.docs)):
             contents_dict[str(i)] = self.docs[i]
 
@@ -96,27 +84,15 @@ class LDA_wrapper:
             json.dump(contents_dict, f, indent=4)
 
         print("len(contents_dict):",len(contents_dict))
-        '''
 
-        content_text = []
-        file2 = self.extracted_folder + self.unique_folder_naming + 'extracted' + '.txt'
-        #print("self docs", self.docs)
-        for i in range(len(self.docs)):
-            content_text.append(self.docs[i])
-
-        for doc in content_text:
-            with open(file2, "a") as f:
-                f.write(str(doc))
-                f.write('\n')
-
-    def write_to_text():
-        os.mkdir(self.extracted_folder+self.unique_folder_naming)
-        text = []
-        file = self.extracted_folder + self.unique_folder_naming + 'extracted' + '.json'
+        pclean.file_dict = self.file_dict + self.unique_folder_naming[:-1] + '_dict'
+        pclean.source_texts = self.source_texts + self.unique_folder_naming + 'extracted.json'
+        pclean.output_dir = self.output_dir + self.unique_folder_naming
 
     def save_topic_term_matrix(self, topics):
-        topic_term_file = open(self.lda_parameters_path + self.unique_folder_naming + 'word_by_topic_conditional.csv', 'w')
-        topic_term_file_2 = open(self.lda_parameters_path + self.unique_folder_naming + 'lda_topics.txt', 'w')
+        topic_term_file = open(self.lda_parameters_path + self.unique_folder_naming + 'word_by_topic_conditional2.csv', 'w')
+        topic_term = open(self.lda_parameters_path + self.unique_folder_naming + 'word_by_topic_conditional.csv', 'w')
+        topic_term_file_2 = open(self.lda_parameters_path + self.unique_folder_naming + 'topics.txt', 'w')
         
         # first lets save the topics with their words and the probability or imporatance value of each word for that topic
         for topic in topics:
@@ -126,6 +102,20 @@ class LDA_wrapper:
 
         # second lets save only the terms of each topic, also take the destemmed form of the word from dictionary
 
+        # discarde the terms label in the topics and extracts only the term probability
+        extracted_prob = [[item[1] for item in topic[1]] for topic in topics]
+
+        # save only the probability
+        #print(len(extracted_prob))
+        for topic in extracted_prob:
+            v = 0
+            for prob in topic:
+                topic_term.write(str(prob)+",")
+                v += prob
+            #print("value", v)
+            topic_term.write('\n')
+
+        print("length of ", len(extracted_prob[0]))
         # discard the probability of each term in the topics and extratracts only the term
         extracted_topics = [[item[0] for item in topic[1]] for topic in topics]
 
@@ -138,6 +128,7 @@ class LDA_wrapper:
         except:
             logging.exception('message')
        
+        # save only the term
         for topic in topics_destemmed:
             for term in topic:
                 topic_term_file_2.write(str(term) + ", ")
@@ -145,18 +136,24 @@ class LDA_wrapper:
             topic_term_file_2.write('\n')
 
     def save_doc_topic_matrix(self, doc_topic_mat):
-        doc_topic_file = open(self.lda_parameters_path + self.unique_folder_naming + "topic-by-doc-matrix.csv", 'w')
+        doc_topic_file = open(self.lda_parameters_path + self.unique_folder_naming + "topic-by-doc-matirx.csv", 'w')
         # save the total number of documents 
-         
-        for doc in doc_topic_mat:
-            index = doc_topic_mat.index(doc)+1
-            doc_topic_file.write('doc '+str(index)+" "+str(doc))
+        extracted_prob = [[topic[1] for topic in doc] for doc in doc_topic_mat]
+        
+        ex_transpose = [list(i) for i in zip(*extracted_prob)]
+       
+        for topic in ex_transpose:
+            for doc in topic:
+                doc_topic_file.write(str(doc)+",")
             doc_topic_file.write('\n')
 
+        for doc in doc_topic_mat:
+            index = doc_topic_mat.index(doc)+1
+            # to check that the probability summation of all topic in a given document is 1 or not.
             v = 0
             for i in doc:
                 v += i[1]
-            #print("summation of all topic probability in document "+str(index)+" is: "+str(v))
+            print("summation of all topic probability in document "+str(index)+" is: "+str(v))
 
         doc_topic_file.close()
 
@@ -205,27 +202,23 @@ class LDA_wrapper:
         # and then write to file probability of each topic given the corpus
         for index, prob in enumerate(topic_prob_dist):
             prob_topic = prob / len(corpus)
-            dist_file.write("probability of topic "+str(index) + ' is: ' + str(prob_topic) + '\n')
+            dist_file.write(str(prob_topic))
+            dist_file.write('\n')
+
             v += prob_topic
-        print("sum of probability is", v)
+        print("\nsum of all topic probability in a corpus is", v)
 
         dist_file.close()
 
-    def generate_topics_gensim(self,num_topics, passes, chunksize,
-                               update_every=0, alpha='auto', eta='auto', decay=0.5, offset=1.0, eval_every=1,
-                               iterations=50, gamma_threshold=0.001, minimum_probability=0.01, random_state=None,
-                               minimum_phi_value=0.01, per_word_topics=True, callbacks=None):
-        start_time_1 = time.time()
-
-        pclean.file_dict = self.file_dict + self.unique_folder_naming[:-1] + '_dict'
-        #pclean.source_texts = self.source_texts + self.unique_folder_naming + 'extracted.json'
-        pclean.source_texts = self.source_texts + self.unique_folder_naming + 'extracted.txt'
-
-        pclean.output_dir = self.output_dir + self.unique_folder_naming
+    def prepare_corpus(self):
+        """
+        Input : clean document
+        purpose : create term dictionary of our corpus and convert list of docs(corpus) into document-term matrix
+        Output : term dictionary and document-term matrix
+        """
         os.mkdir(pclean.output_dir)
 
         # Do cleansing on the data and turing it to bad-of-words model
-
         with open(self.lda_parameters_path + self.unique_folder_naming + 'status.txt', 'w') as f:
             f.write('Preprocessing started.' + '\n')
 
@@ -236,11 +229,23 @@ class LDA_wrapper:
             f.write('Topic analysis started.\n')
 
         with open(pclean.output_dir+'cleaned.json', "r") as read_file:
-            ret = json.load(read_file)
+            documents = json.load(read_file)
 
+        # change loaded json file into list
+        data = []
+        for document in documents:
+            # append each lines to list elements by splitting with a line.
+            data.append(documents[document].splitlines())
+
+        # removes empty documents, by checking the length of the document if its empty its length is zero.
+        # also remove documents with only single word.
         data_lemmatized = []
-        for k in ret:
-            data_lemmatized.append(ret[k].splitlines())
+        for d in data:
+            if len(d) == 0 or len(d) == 1:
+                pass
+            else:
+                data_lemmatized.append(d)
+
 
         # save lemmatized document
         with open(pclean.output_dir+'lemmatized.txt', 'w') as lem:
@@ -248,9 +253,8 @@ class LDA_wrapper:
                 lem.write(str(d))
                 lem.write('\n')
 
-        # Create Dictionary
+        # create dictionary, where every unique term is assigned an index, you can order it according to alphabets
         id2word = corpora.Dictionary(data_lemmatized)
-
         # save id2word dictionary
         with open(pclean.output_dir+'id2word.txt', 'w') as dic:
             for i in id2word:
@@ -260,12 +264,22 @@ class LDA_wrapper:
         # Create Corpus
         texts = data_lemmatized
 
-        # Term Document Frequency
+        # create document-term matrix using dictionary created above
         corpus = [id2word.doc2bow(text) for text in texts]
 
-        # View
-        # print(corpus[0:1])
-        # print(id2word[1])
+        return id2word, corpus, texts
+
+
+    def generate_topics_gensim(self,num_topics, passes, chunksize,
+                               update_every=0, alpha='auto', eta='auto', decay=0.5, offset=1.0, eval_every=1,
+                               iterations=50, gamma_threshold=0.001, minimum_probability=0.01, random_state=None,
+                               minimum_phi_value=0.01, per_word_topics=True, callbacks=None):
+        
+        # start the time to check how many seconds it will take.
+        start_time_1 = time.time()
+
+        # get the dictionary and corpus
+        id2word, corpus, texts = self.prepare_corpus()
 
         self.lda_model = gensim.models.ldamodel.LdaModel(corpus=corpus,
                                                     id2word=id2word,
@@ -312,7 +326,7 @@ class LDA_wrapper:
             value = 0
             for prob in topic:
                 value += prob
-            #print("summation of all term probability in topic: ",v, " is ", value)
+            print("summation of all term probability in topic: ",v, " is ", value)
             v +=1 
 
         """display total processing time took"""
@@ -321,57 +335,42 @@ class LDA_wrapper:
         print('Total training time took: ' + str(total_training_time) + ' minutes')
 
         with open(self.lda_parameters_path + self.unique_folder_naming + 'status.txt', 'w') as f:
-            f.write('Topic analysis Finished.')
-
-        '''
-        Seems remaining code is to extract any produced parameters from the resulting lda model, like the weights. We need to define the proto formats of course
-        for all the returned parameters
-        
-        also code that writes the final status that shows total running time that elapsed
-        
-        in general, compare the outputs of plsa and as much as possible try to apply it to the results that are returned by lda
-        '''
-
-def run_lda():
-
-    # path = str(pathlib.Path(os.path.abspath('')).parents[1])+'/appData/misc/extracted_2.json'
-    # path = str(pathlib.Path(os.path.abspath('')).parents[1])+'/appData/misc/extracted_singnet_all.json'
-    # path = str(pathlib.Path(os.path.abspath('')).parents[1])+'/appData/misc/extracted_bio_all.json'
-    # path = str(pathlib.Path(os.path.abspath('')).parents[1])+'/appData/misc/extracted_hersheys_all.json'
-    # path = str(pathlib.Path(os.path.abspath('')).parents[1])+'/appData/misc/extracted_hr_all.json'
+            f.write('Topic analysis finished.\n')
+            f.write(str(total_training_time))
     
-    path = str(pathlib.Path(os.path.abspath('')).parents[1])+'/appData/misc/topic_analysis.json'
-    path2 = str(pathlib.Path(os.path.abspath('')).parents[1])+'/appData/misc/test_doc_2.txt'
+
+def run_lda(path):
 
     docs = []
+    print(path)
+    npath = path.split(".")
+    print(npath)
+    # if the file is .json
+    if npath[-1] == "json":
+        with open(path, "r") as read_file:
+            fileList = json.load(read_file)
+        
+        docs = fileList['docs']
 
-    with open(path, "r") as read_file:
-        fileList = json.load(read_file)
+    # if the file is .txt
+    elif npath[-1] == "txt":
+        with open(path, "r") as file:
+            for cnt, line in enumerate(file):
+                docs.append(line)
 
-    for k in fileList:
-        docs.append(fileList[k])
+    else:
+        print("your file format is not supported")
+        exit(0)
 
-    files = []
-    with open(path2, "r") as file:
-        for cnt, line in enumerate(file):
-            #print("line {}: {}".format(cnt, line))
-            files.append(line)
-
-    # when incoming docs is text file
-    s = LDA_wrapper(files,local=True)
+     # call the LSA Wrapper
+    s = LDA_wrapper(docs,local=True)
     
-    # when the incoming docs is json file
-    #s = LDA_wrapper(docs,local=True)
-
-    # s.topic_divider = 0
-    # s.num_topics = 2
-    # s.max_iter = 22
-    # s.beta = 1
     s.unique_folder_naming = str(datetime.datetime.now()).replace(':','-').replace('.','-') + '^' + str(random.randint(100000000000, 999999999999)) + '/'
     os.mkdir(str(pathlib.Path(os.path.abspath('')).parents[1])+'/appData/lda/lda-parameters/'+s.unique_folder_naming)
+
     s.write_to_json()
-    # s.generate_topics_gensim(num_topics=3,passes=22,chunksize=200)
-    s.generate_topics_gensim(num_topics=5,passes=22,chunksize=200, per_word_topics=300)
+
+    s.generate_topics_gensim(num_topics=2,passes=22,chunksize=200, per_word_topics=300)
     # s.generate_topics_gensim(num_topics=2,passes=22,chunksize=200)
     # s.generate_topics_gensim(num_topics=2,passes=100,chunksize=200,random_state=2)
 
@@ -448,7 +447,6 @@ def run_lda():
     # print('=========================')
     # plsa self
 
-
 def dot_product(list_1,list_2,depth=30):
 
     count = 0
@@ -457,11 +455,9 @@ def dot_product(list_1,list_2,depth=30):
             count = count + 1
     return count
 
-
 def print_two_d(two_d):
     for i in two_d:
         print(i)
-
 
 
 
@@ -470,6 +466,12 @@ __end__ = '__end__'
 
 if __name__ == '__main__':
 
-    run_lda()
+    test1 = str(pathlib.Path(os.path.abspath('')).parents[0]) + '/docs/tests/test_doc 2.txt'
+    test2 = str(pathlib.Path(os.path.abspath('')).parents[0]) + '/docs/tests/test_doc.txt'
+    test3 = str(pathlib.Path(os.path.abspath('')).parents[0])+'/docs/tests/test_doc_2.txt'
+    test4 = str(pathlib.Path(os.path.abspath('')).parents[0])+'/docs/tests/topic_analysis.json'
+    test5 = str(pathlib.Path(os.path.abspath('')).parents[0])+'/docs/tests/topic_analysis_2.json'
+    
+    run_lda(test4)
 
     pass

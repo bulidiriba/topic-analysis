@@ -57,15 +57,6 @@ class LSA_wrapper:
         self.LSA_PARAMETERS_PATH = ''
 
         self.unique_folder_naming = str(datetime.datetime.now()).replace(':','-').replace('.','-') + '^' + str(random.randint(100000000000, 999999999999)) + '/'
-        #os.mkdir(self.lsa_parameters_path + self.unique_folder_naming)
-        #os.mkdir(self.extracted_folder+self.unique_folder_naming)
-        
-        #pclean.output_dir = self.output_dir + self.unique_folder_naming
-        #os.mkdir(pclean.output_dir)
-
-        # specific file
-        #self.status_file = self.lsa_parameters_path + self.unique_folder_naming + 'status.txt'
-        
         self.num_topics = None
         self.topic_divider = None
         self.max_iter = None
@@ -94,23 +85,6 @@ class LSA_wrapper:
         pclean.source_texts = self.source_texts + self.unique_folder_naming + 'extracted.json'
         pclean.output_dir = self.output_dir + self.unique_folder_naming
 
-    def write_to_txt(self):
-        os.mkdir(self.extracted_folder+self.unique_folder_naming)
-        content_text = []
-        file2 = self.extracted_folder + self.unique_folder_naming + 'extracted' + '.txt'
-        #print("self docs", self.docs)
-        for i in range(len(self.docs)):
-            content_text.append(self.docs[i])
-
-        for doc in content_text:
-            with open(file2, "a") as f:
-                f.write(str(doc))
-                f.write('\n')
-
-        pclean.file_dict = self.file_dict + self.unique_folder_naming[:-1] + '_dict'
-        pclean.source_texts = self.source_texts + self.unique_folder_naming + 'extracted.txt'
-        pclean.output_dir = self.output_dir + self.unique_folder_naming
-
     def save_topic_term_matrix(self, topics):
         topic_term_file = open(self.lsa_parameters_path + self.unique_folder_naming + 'word_by_topic_conditional2.csv', 'w')
         topic_term = open(self.lsa_parameters_path + self.unique_folder_naming + 'word_by_topic_conditional.csv', 'w')
@@ -137,11 +111,13 @@ class LSA_wrapper:
 	       			t_prob.append(p[0])
         	extracted_prob.append(t_prob)
 
+        print(extracted_prob)
+
         for topic in extracted_prob:
             v = 0
-            for prob in topic:
-                topic_term.write(str(prob)+",")
-                v += float(prob)
+            for doc_prob in topic:
+                topic_term.write(str(doc_prob)+",")
+                v += float(doc_prob)
             print("summation of all word probability in topic ", extracted_prob.index(topic), "is: ",  v)
             topic_term.write('\n')
         
@@ -181,12 +157,7 @@ class LSA_wrapper:
 	    purpose : create term dictionary of our corpus and convert list of docs(corpus) into document-term matrix
 	    Output : term dictionary and document-term matrix
 	    """
-	    # create dictionary, where every unique term is assigned an index, you can order it according to alphabets
-	    #dictionary = corpora.Dictionary(doc_clean)
 	    
-	    # create document-term matrix using dictionary created above
-	    #doc_term_matrix = [dictionary.doc2bow(doc) for doc in doc_clean]
-
 	    os.mkdir(pclean.output_dir)
 
 	    # Do cleansing on the data and turing it to bad-of-words model
@@ -226,13 +197,9 @@ class LSA_wrapper:
 	    # Term Document Frequency
 	    corpus = [id2word.doc2bow(text) for text in texts]
 
-        # View
-        # print(corpus[0:1])
-        # print(id2word[1])
-
 	    return id2word, corpus
 
-    def generate_topics_gensim(self, num_topics=5, per_words=300, chunksize=20000, decay=1.0, distributed=False, onepass=True, power_iters=2, extra_samples=100):
+    def generate_topics_gensim(self, num_topics=2, per_words=300, chunksize=20000, decay=1.0, distributed=False, onepass=True, power_iters=2, extra_samples=100):
         start_time_1 = time.time()
 
         # get the dictionary and corpus
@@ -262,12 +229,12 @@ class LSA_wrapper:
             f.write('Topic analysis finished.\n')
             f.write(str(total_training_time))
         
-
         
 def run_lsa(path):
 
     docs = []
     print(path)
+
     npath = path.split(".")
     print(npath)
     # if the file is .json
@@ -275,8 +242,7 @@ def run_lsa(path):
         with open(path, "r") as read_file:
             fileList = json.load(read_file)
 
-        for k in fileList:
-            docs.append(fileList[k])
+        docs = fileList['docs']
 
     # if the file is .txt
     elif npath[-1] == "txt":
@@ -303,9 +269,12 @@ __end__ = '__end__'
 
 if __name__ == '__main__':
 
-    path = str(pathlib.Path(os.path.abspath('')).parents[1])+'/appData/misc/topic_analysis.json'
-    path2 = str(pathlib.Path(os.path.abspath('')).parents[1])+'/appData/misc/test_doc_2.txt'
+    test1 = str(pathlib.Path(os.path.abspath('')).parents[0]) + '/docs/tests/test_doc 2.txt'
+    test2 = str(pathlib.Path(os.path.abspath('')).parents[0]) + '/docs/tests/test_doc.txt'
+    test3 = str(pathlib.Path(os.path.abspath('')).parents[0])+'/docs/tests/test_doc_2.txt'
+    test4 = str(pathlib.Path(os.path.abspath('')).parents[0])+'/docs/tests/topic_analysis.json'
+    test5 = str(pathlib.Path(os.path.abspath('')).parents[0])+'/docs/tests/topic_analysis_2.json'
 
-    run_lsa(path2)
+    run_lsa(test5)
 
     pass

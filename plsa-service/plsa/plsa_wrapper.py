@@ -57,10 +57,7 @@ class PLSA_wrapper:
         pass
 
 
-
     def write_to_json(self):
-
-
 
         # self.unique_folder_naming = str(datetime.datetime.now()).replace(':','-').replace('.','-') + '^' + str(random.randint(100000000000, 999999999999)) + '/'
         print(self.unique_folder_naming)
@@ -78,7 +75,6 @@ class PLSA_wrapper:
             json.dump(contents_dict, f, indent=4)
 
         print("len(contents_dict):",len(contents_dict))
-
 
 
     def generate_topics_json(self):
@@ -140,21 +136,33 @@ class PLSA_wrapper:
             f.write(str(round((end_time_1 - start_time_1) / 60, 4)))
 
 
-
-
-
 def run_plsa():
 
-    path = str(pathlib.Path(os.path.abspath('')).parents[2])+'/appData/misc/extracted_2.json'
+    #path = str(pathlib.Path(os.path.abspath('')).parents[1])+'/docs/tests/test_doc 2.txt'
+    #path = str(pathlib.Path(os.path.abspath('')).parents[1])+'/docs/tests/test_doc.txt'
+    #path = str(pathlib.Path(os.path.abspath('')).parents[1])+'/docs/tests/test_doc_2.txt'
+    #path = str(pathlib.Path(os.path.abspath('')).parents[1])+'/docs/tests/topic_analysis.json'
+    path = str(pathlib.Path(os.path.abspath('')).parents[1])+'/docs/tests/topic_analysis_2.json'
 
     docs = []
 
+    npath = path.split(".")
 
-    with open(path, "r") as read_file:
-        fileList = json.load(read_file)
+    if npath[-1] == "json":
+        with open(path, "r") as read_file:
+            fileList = json.load(read_file)
 
-    for k in fileList:
-        docs.append(fileList[k])
+        docs = fileList['docs']
+        #print(len(docs))
+        
+    elif npath[-1] == "txt":
+        with open(path, "r") as file:
+            for cnt, line in enumerate(file):
+                docs.append(line)
+
+    else:
+        print("your file format is not supported")
+
 
     s = PLSA_wrapper(docs,local=True)
     s.topic_divider = 0

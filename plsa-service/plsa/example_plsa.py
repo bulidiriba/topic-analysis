@@ -30,7 +30,7 @@ file_parts_number = 8
 folder = ''
 dict_path = ''
 
-file= 'plsa_topics.txt'
+file= 'topics.txt'
 # file1='word_topics'
 file2='topic_probability_pz'
 
@@ -471,7 +471,7 @@ def topic_labels(data, model, N=50):
        # print (i)
        # file_txt.write(str(i))
        for j in i:
-           file_txt.write(j+', ')
+            file_txt.write(j+', ')
        file_txt.write('\n')
     file_txt.close()
     # print plsa.topic_labels(inv_vocab, N)
