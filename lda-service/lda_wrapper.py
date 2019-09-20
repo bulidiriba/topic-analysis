@@ -135,20 +135,30 @@ class LDA_wrapper:
 
             topic_term_file_2.write('\n')
 
-    def save_doc_topic_matrix(self, doc_topic_mat):
+    def save_doc_topic_matrix(self, doc_topic_mat, non_empty_doc_index):
         doc_topic_file = open(self.lda_parameters_path + self.unique_folder_naming + "topic-by-doc-matirx.csv", 'w')
+        # first write the non_empty_doc_index to the file
+        for indx in non_empty_doc_index:
+            doc_topic_file.write(","+str(indx))
+        doc_topic_file.write("\n")
+
         # save the total number of documents 
         extracted_prob = [[topic[1] for topic in doc] for doc in doc_topic_mat]
         
         ex_transpose = [list(i) for i in zip(*extracted_prob)]
        
         for topic in ex_transpose:
+            doc_topic_file.write(str(ex_transpose.index(topic))+",")
             for doc in topic:
-                doc_topic_file.write(str(doc)+",")
+                if(topic.index(doc) != len(topic) - 1):
+                    doc_topic_file.write(str(doc)+",")
+                else:
+                    doc_topic_file.write(str(doc))
+
             doc_topic_file.write('\n')
 
         for doc in doc_topic_mat:
-            index = doc_topic_mat.index(doc)+1
+            index = doc_topic_mat.index(doc)
             # to check that the probability summation of all topic in a given document is 1 or not.
             v = 0
             for i in doc:
@@ -237,6 +247,9 @@ class LDA_wrapper:
             # append each lines to list elements by splitting with a line.
             data.append(documents[document].splitlines())
 
+        # to store index of non-empty documents
+        non_empty_doc_index = []
+
         # removes empty documents, by checking the length of the document if its empty its length is zero.
         # also remove documents with only single word.
         data_lemmatized = []
@@ -245,7 +258,10 @@ class LDA_wrapper:
                 pass
             else:
                 data_lemmatized.append(d)
+                non_empty_doc_index.append(data.index(d))
 
+        for i in non_empty_doc_index:
+            print("doc", i)
 
         # save lemmatized document
         with open(pclean.output_dir+'lemmatized.txt', 'w') as lem:
@@ -267,7 +283,7 @@ class LDA_wrapper:
         # create document-term matrix using dictionary created above
         corpus = [id2word.doc2bow(text) for text in texts]
 
-        return id2word, corpus, texts
+        return id2word, corpus, texts, non_empty_doc_index
 
 
     def generate_topics_gensim(self,num_topics, passes, chunksize,
@@ -279,7 +295,7 @@ class LDA_wrapper:
         start_time_1 = time.time()
 
         # get the dictionary and corpus
-        id2word, corpus, texts = self.prepare_corpus()
+        id2word, corpus, texts, non_empty_doc_index = self.prepare_corpus()
 
         self.lda_model = gensim.models.ldamodel.LdaModel(corpus=corpus,
                                                     id2word=id2word,
@@ -309,7 +325,7 @@ class LDA_wrapper:
         doc_topic_mat = []
         for bowd in corpus:
             doc_topic_mat.append(self.lda_model.get_document_topics(bow=bowd, minimum_probability=0.000001))
-        self.save_doc_topic_matrix(doc_topic_mat)
+        self.save_doc_topic_matrix(doc_topic_mat, non_empty_doc_index)
 
         '''Topic Probability'''
         self.topic_probability(corpus, self.lda_model, num_topics)
@@ -343,6 +359,7 @@ def run_lda(path):
 
     docs = []
     print(path)
+    
     npath = path.split(".")
     print(npath)
     # if the file is .json
@@ -472,6 +489,6 @@ if __name__ == '__main__':
     test4 = str(pathlib.Path(os.path.abspath('')).parents[0])+'/docs/tests/topic_analysis.json'
     test5 = str(pathlib.Path(os.path.abspath('')).parents[0])+'/docs/tests/topic_analysis_2.json'
     
-    run_lda(test4)
+    run_lda(test1)
 
     pass
