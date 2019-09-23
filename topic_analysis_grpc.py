@@ -30,11 +30,11 @@ import lsa_wrapper
 import threading
 import multiprocessing as mp
 
-from service_spec import topic_analysis_pb2
-from service_spec import topic_analysis_pb2_grpc
+#from service_spec import topic_analysis_pb2
+#from service_spec import topic_analysis_pb2_grpc
 
-#import topic_analysis_pb2
-#import topic_analysis_pb2_grpc
+import topic_analysis_pb2
+import topic_analysis_pb2_grpc
 
 
 class TopicAnalysis(topic_analysis_pb2_grpc.TopicAnalysisServicer):
@@ -128,7 +128,22 @@ class TopicAnalysis(topic_analysis_pb2_grpc.TopicAnalysisServicer):
         docs = request.docs
         num_topics = request.num_topics
         topic_divider = request.topic_divider
-        maxiter = request.maxiter
+        iterations = request.iterations
+        num_words = request.num_words
+        minimum_probability = request.minimum_probability
+        minimum_phi_value = request.minimum_phi_value
+        per_word_topics = request.per_word_topics
+        chunksize = request.chunksize
+        passes = request.passes
+        alpha = request.alpha
+        eta = request.eta
+        decay = request.decay
+        gamma_threshold = request.gamma_threshold
+        coherence = request.coherence
+        eval_every = request.eval_every
+        update_every = request.update_every
+        offset = request.offset
+
         param_error = False
         message = ''
         try :
@@ -156,7 +171,8 @@ class TopicAnalysis(topic_analysis_pb2_grpc.TopicAnalysisServicer):
             unique_folder_naming = str(datetime.datetime.now()).replace(':', '-').replace('.', '-') + '^' + str(random.randint(100000000000, 999999999999)) + '_lta/'
 
             # thread1 = threading.Thread(target=generate_topics_plsa, args=(docs,unique_folder_naming,num_topics,topic_divider,maxiter))
-            p1 = mp.Process(target=generate_topics_lda, args=(docs,unique_folder_naming,num_topics,topic_divider,maxiter))
+            p1 = mp.Process(target=generate_topics_lda, args=(docs,unique_folder_naming,num_topics,topic_divider,iterations, num_words, minimum_probability, 
+                minimum_phi_value, per_word_topics, chunksize, passes, alpha, eta, decay, gamma_threshold, coherence, eval_every, update_every, offset))
 
             p1.start()
 
@@ -270,31 +286,35 @@ def generate_topics_plsa(docs,unique_folder_naming,num_topics,topic_divider,maxi
             f.write('\n')
             f.write(str(e))
 
-def generate_topics_lda(docs,unique_folder_naming,num_topics,topic_divider,maxiter):
+def generate_topics_lda(docs,unique_folder_naming,num_topics,topic_divider,iterations, num_words, minimum_probability, 
+                minimum_phi_value, per_word_topics, chunksize, passes, alpha, eta, decay, gamma_threshold, coherence, eval_every, update_every, offset):
 
     # Put try catch here and add status
     #path = str(pathlib.Path(os.path.abspath('')).parents[0])+'/appData/misc/topic_analysis.json'
-    s = lda_wrapper.LDA_wrapper(docs)
+    lda = lda_wrapper.LDA_wrapper(docs)
 
     try:
-        os.mkdir(s.lda_parameters_path+unique_folder_naming)
+        os.mkdir(lda.lda_parameters_path+unique_folder_naming)
         # 1/0
-        with open(s.lda_parameters_path+unique_folder_naming+'status.txt','w') as f:
+        with open(lda.lda_parameters_path+unique_folder_naming+'status.txt','w') as f:
             f.write('Analysis started.')
             f.write('\n')
 
-        s.unique_folder_naming = unique_folder_naming
-        s.num_topics = num_topics
-        s.topic_divider = topic_divider
-        s.max_iter = maxiter
-        s.write_to_json()
-        s.generate_topics_gensim(num_topics=num_topics, passes=22, chunksize=200, per_word_topics=300)
+        lda.unique_folder_naming = unique_folder_naming
+        
+        #s.num_topics = num_topics
+
+        lda.write_to_json()
+
+        lda.generate_topics_gensim(num_topics=num_topics, passes=passes, chunksize=chunksize, per_word_topics=per_word_topics, iterations=iterations, alpha=alpha, eta=eta,
+            minimum_probability=minimum_probability, minimum_phi_value=minimum_phi_value, gamma_threshold=gamma_threshold, eval_every=eval_every, update_every=update_every,
+            offset=offset,num_words=num_words, coherence=coherence)
 
     except Exception as e:
 
         logging.exception("message")
 
-        with open(s.lda_parameters_path+unique_folder_naming+'status.txt','w') as f:
+        with open(lda.lda_parameters_path+unique_folder_naming+'status.txt','w') as f:
             f.write('Failed.')
             f.write('\n')
             f.write(str(e))
@@ -303,25 +323,25 @@ def generate_topics_lsa(docs,unique_folder_naming,num_topics):
 
     # Put try catch here and add status
     #path = str(pathlib.Path(os.path.abspath('')).parents[0])+'/appData/misc/topic_analysis.json'
-    s = lsa_wrapper.LSA_wrapper(docs)
+    lsa = lsa_wrapper.LSA_wrapper(docs)
 
     try:
-        os.mkdir(s.lsa_parameters_path+unique_folder_naming)
+        os.mkdir(lsa.lsa_parameters_path+unique_folder_naming)
         # 1/0
-        with open(s.lsa_parameters_path+unique_folder_naming+'status.txt','w') as f:
+        with open(lsa.lsa_parameters_path+unique_folder_naming+'status.txt','w') as f:
             f.write('Analysis started.')
             f.write('\n')
 
-        s.unique_folder_naming = unique_folder_naming
-        s.num_topics = num_topics
-        s.write_to_txt()
-        s.generate_topics_gensim(num_topics=num_topics)
+        lsa.unique_folder_naming = unique_folder_naming
+        lsa.num_topics = num_topics
+        lsa.write_to_json()
+        lsa.generate_topics_gensim(num_topics=num_topics)
 
     except Exception as e:
 
         logging.exception("message")
 
-        with open(s.lsa_parameters_path+unique_folder_naming+'status.txt','w') as f:
+        with open(lsa.lsa_parameters_path+unique_folder_naming+'status.txt','w') as f:
             f.write('Failed.')
             f.write('\n')
             f.write(str(e))

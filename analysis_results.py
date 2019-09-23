@@ -2,7 +2,6 @@
 import time
 import csv
 import numpy as np
-
 import os
 import sys
 import pathlib
@@ -52,8 +51,6 @@ def results():
         else: pass
 
         #print(parameters_path)
-
-
         with open(parameters_path + 'status.txt', 'r') as f:
             status = f.read().splitlines()
             
@@ -69,14 +66,19 @@ def results():
         topic_by_doc = []
         word_by_topic_conditional = []
         docs_list = []
-
         
         with open(parameters_path + 'topic-by-doc-matirx.csv') as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=',')
+            # to jump over the first line of csv_reader because it shows the index of non empty documents
             docs_list = next(csv_reader)[1:]
             for row in csv_reader:
-                topic_by_doc.append(list((np.array(row[:-1])).astype(np.float)))
-        
+                # skip the first element of the row(index of 0) or  since it shows the topic id, so start from 1 and loop until -1
+                topic_by_doc.append(list((np.array(row[1:])).astype(np.float)))
+      
+       
+        print("\nSummation of all joint probability in topic_by_doc_matrix")
+        print(np.sum(np.sum(np.asarray(topic_by_doc, dtype=np.float32), axis=0)))
+
         with open(parameters_path + 'topic_probability_pz', 'r') as f:
             topic_probabilities = f.read().splitlines()
             topic_probabilities = list((np.array(topic_probabilities)).astype(np.float))
@@ -86,13 +88,18 @@ def results():
 
             for row in csv_reader:
                 word_by_topic_conditional.append(list((np.array(row[:-1])).astype(np.float)))
+        
+        if (method_type == 'plsa'):
+            with open(parameters_path + 'logL.txt', 'r') as f:
+                logLikelihoods = f.read().splitlines()
 
-        '''
-        with open(parameters_path + 'logL.txt', 'r') as f:
-            logLikelihoods = f.read().splitlines()
+                logLikelihoods = list((np.array(logLikelihoods)).astype(np.float))
+            
+        
+        b = np.asarray(word_by_topic_conditional, dtype=np.float32)
+        print("\nSummation of all word probability in each topics")
+        print(np.sum(b, axis=1))
 
-            logLikelihoods = list((np.array(logLikelihoods)).astype(np.float))
-        '''
         resp = {}
         resp['status'] = status[0]
         resp['total running time in minutes'] = float(status[1])
@@ -101,13 +108,14 @@ def results():
         resp['topicByDocMatirx'] = topic_by_doc
         resp['topicProbabilities'] = topic_probabilities
         resp['wordByTopicConditional'] = word_by_topic_conditional
-        #resp['logLikelihoods'] = logLikelihoods
+        
+        if (method_type == 'plsa'):
+            resp['logLikelihoods'] = logLikelihoods
 
         return make_response(jsonify(resp), 200)
 
 
     except Exception as e:
-
         logging.exception("message")
 
         # NOT: This line is tested: it throws back error message correctly
@@ -127,8 +135,5 @@ __end__ = '__end__'
 
 
 if __name__ == '__main__':
-
-
-
     # app.run(debug=True)
     app.run(debug=False,port=4998)
