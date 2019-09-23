@@ -115,7 +115,7 @@ class LDA_wrapper:
             #print("value", v)
             topic_term.write('\n')
 
-        print("length of ", len(extracted_prob[0]))
+        # print("length of ", len(extracted_prob[0]))
         # discard the probability of each term in the topics and extratracts only the term
         extracted_topics = [[item[0] for item in topic[1]] for topic in topics]
 
@@ -135,37 +135,80 @@ class LDA_wrapper:
 
             topic_term_file_2.write('\n')
 
-    def save_doc_topic_matrix(self, doc_topic_mat, non_empty_doc_index):
-        doc_topic_file = open(self.lda_parameters_path + self.unique_folder_naming + "topic-by-doc-matirx.csv", 'w')
-        # first write the non_empty_doc_index to the file
-        for indx in non_empty_doc_index:
-            doc_topic_file.write(","+str(indx))
-        doc_topic_file.write("\n")
-
-        # save the total number of documents 
-        extracted_prob = [[topic[1] for topic in doc] for doc in doc_topic_mat]
+    def topic_by_doc_matrix(self, model, corpus, non_empty_doc_index, id2word, minimum_probability):
+        doc_topic_conditional_file = open(self.lda_parameters_path + self.unique_folder_naming + "topic-by-doc-conditional.csv", 'w')
+        doc_topic_joint_file = open(self.lda_parameters_path + self.unique_folder_naming + "topic-by-doc-matirx.csv", 'w')
         
-        ex_transpose = [list(i) for i in zip(*extracted_prob)]
+        doc_by_topic_mat = []  # matrix to store the doc by topic results returned by gensim library
+        extracted_prob = [] # matrix to extract only the probability from the doc_by_topic_mat
+        topic_by_doc =[] # matrix to store the transpose of above probability
+        topic_by_doc_joint = [] # matrix to store the joint probability of topic by doc
+
+        # return the result from gensim functions get_document_topics
+        for bowd in corpus:
+            doc_by_topic_mat.append(model.get_document_topics(bow=bowd, minimum_probability=minimum_probability))
+
+        # extract only the probability of each topic in the given documents
+        extracted_prob = [[topic[1] for topic in doc] for doc in doc_by_topic_mat]
+        
+        # transpose the probability distributions to change it in the same format with PLSA topic_by_doc_matrix.
+        topic_by_doc = [list(i) for i in zip(*extracted_prob)]
+
+        # to check that the probability summation of all topic in a given document is 1 or not.
+        #print("summation of all topic probability in each document is")
+        #print(np.sum(np.asarray(topic_by_doc, dtype=np.float32), axis=0))
+
+        
+        # calculate the Joint Probability of each documents and each topics
+        # p(z0, d0) = p(z0|d0) * p(d0)
        
-        for topic in ex_transpose:
-            doc_topic_file.write(str(ex_transpose.index(topic))+",")
+        # call the document probability
+        doc_prob = self.document_probability(corpus, id2word)
+        
+        for topic in topic_by_doc:
+            joint_topic_prob = []
+            for indx, prob in enumerate(topic):
+                res = prob * doc_prob[indx] 
+                joint_topic_prob.append(res)
+            topic_by_doc_joint.append(joint_topic_prob)
+        
+        #print("summation of joint probability of topic and document is")
+        #print(np.sum(np.sum(np.asarray(topic_by_doc_joint, dtype=np.float32), axis=0)))
+
+
+        # then now write to file, first write the index of non_empty_doc, then the conditional probability of each topic in this non_empty_doc
+        
+        #  write the non_empty_doc_index to the file
+        for indx in non_empty_doc_index:
+            doc_topic_conditional_file.write(","+str(indx))
+            doc_topic_joint_file.write(","+str(indx))
+        doc_topic_conditional_file.write("\n")
+        doc_topic_joint_file.write("\n")
+
+       
+        # then write the conditional probability of each topic in the given documents.       
+        for topic in topic_by_doc:
+            doc_topic_conditional_file.write(str(topic_by_doc.index(topic))+",")
             for doc in topic:
                 if(topic.index(doc) != len(topic) - 1):
-                    doc_topic_file.write(str(doc)+",")
+                    doc_topic_conditional_file.write(str(doc)+",")
                 else:
-                    doc_topic_file.write(str(doc))
+                    doc_topic_conditional_file.write(str(doc))
 
-            doc_topic_file.write('\n')
+            doc_topic_conditional_file.write('\n')
+        doc_topic_conditional_file.close()
 
-        for doc in doc_topic_mat:
-            index = doc_topic_mat.index(doc)
-            # to check that the probability summation of all topic in a given document is 1 or not.
-            v = 0
-            for i in doc:
-                v += i[1]
-            print("summation of all topic probability in document "+str(index)+" is: "+str(v))
+        # then write the Joint probability of each topic and each document.       
+        for topic in topic_by_doc_joint:
+            doc_topic_joint_file.write(str(topic_by_doc_joint.index(topic))+",")
+            for doc in topic:
+                if(topic.index(doc) != len(topic) - 1):
+                    doc_topic_joint_file.write(str(doc)+",")
+                else:
+                    doc_topic_joint_file.write(str(doc))
 
-        doc_topic_file.close()
+            doc_topic_joint_file.write('\n')
+        doc_topic_joint_file.close()
 
     def save_topic_coherence(self, top_topics):
         topic_prob_file = open(self.lda_parameters_path + self.unique_folder_naming + "topic_coherence.txt", 'w')
@@ -175,11 +218,35 @@ class LDA_wrapper:
             topic_prob_file.write('\n')
         topic_prob_file.close()
 
-    def topic_probability(self, corpus, model, num_topics):
+    def document_probability(self, corpus, id2word):
+        doc_prob_file = open(self.lda_parameters_path + self.unique_folder_naming + "document_probability", 'w')
+        doc_prob = []
+        n_vocabulary = len(id2word) # the total number of vocabulary
+        for document in corpus:
+            # the total number of words in each document
+            n_word_document = len(document)
+
+            # probability of each document = n_word_document / n_vocabulary
+            prob = n_word_document / n_vocabulary
+
+            doc_prob.append(prob)
+
+        #print("summation of all document probability")
+        #print(np.sum(np.asarray(doc_prob, dtype=np.float32), axis=0))
+        
+        for d_prob in doc_prob:
+            doc_prob_file.write(str(d_prob)+'\n')
+        doc_prob_file.close()
+
+        return doc_prob
+
+    def topic_probability(self, corpus, model, num_topics, minimum_probability):
         dist_file = open(self.lda_parameters_path + self.unique_folder_naming + "topic_probability_pz", 'w')
         '''
             the formula used to calculate this is
             p(zi) = (p(zi|d0)+p(zi|d1)+p(zi|d2)+...+p(zi|dn)) / len(corpus)
+
+            len(corpus) here means length of non-empty documents from the corpus, because empty docs are removed.
         '''
 
         # list that store the probability for each topic
@@ -188,7 +255,7 @@ class LDA_wrapper:
         # loop through all the documents
         for index, document in enumerate(corpus):
             # loop through all the probability of topics for each documents
-            for prob_dist in model.get_document_topics(document, minimum_probability=0.0):
+            for prob_dist in model.get_document_topics(document, minimum_probability=minimum_probability):
                 #print("topic_id: "+str(prob_dist[0])+" probability: "+str(prob_dist[1]))
 
                 # to get the topic id in each document
@@ -216,7 +283,8 @@ class LDA_wrapper:
             dist_file.write('\n')
 
             v += prob_topic
-        print("\nsum of all topic probability in a corpus is", v)
+
+        # print("\nsum of all topic probability in a corpus is", v)
 
         dist_file.close()
 
@@ -230,14 +298,13 @@ class LDA_wrapper:
 
         # Do cleansing on the data and turing it to bad-of-words model
         with open(self.lda_parameters_path + self.unique_folder_naming + 'status.txt', 'w') as f:
-            f.write('Preprocessing started.' + '\n')
+            f.write('Preprocessing started.')
 
         pclean.pre_pro()
 
         with open(self.lda_parameters_path + self.unique_folder_naming + 'status.txt', 'w') as f:
-            f.write('Preprocessing finished.\n') 
-            f.write('Topic analysis started.\n')
-
+            f.write('Preprocessing finished. Topic analysis started.') 
+            
         with open(pclean.output_dir+'cleaned.json', "r") as read_file:
             documents = json.load(read_file)
 
@@ -254,14 +321,11 @@ class LDA_wrapper:
         # also remove documents with only single word.
         data_lemmatized = []
         for d in data:
-            if len(d) == 0 or len(d) == 1:
+            if len(d) == 0:
                 pass
             else:
                 data_lemmatized.append(d)
                 non_empty_doc_index.append(data.index(d))
-
-        for i in non_empty_doc_index:
-            print("doc", i)
 
         # save lemmatized document
         with open(pclean.output_dir+'lemmatized.txt', 'w') as lem:
@@ -286,10 +350,10 @@ class LDA_wrapper:
         return id2word, corpus, texts, non_empty_doc_index
 
 
-    def generate_topics_gensim(self,num_topics, passes, chunksize,
+    def generate_topics_gensim(self,num_topics, passes=22, chunksize=200,
                                update_every=0, alpha='auto', eta='auto', decay=0.5, offset=1.0, eval_every=1,
-                               iterations=50, gamma_threshold=0.001, minimum_probability=0.01, random_state=None,
-                               minimum_phi_value=0.01, per_word_topics=True, callbacks=None):
+                               iterations=50, gamma_threshold=0.001, minimum_probability=0.0, random_state=None,
+                               minimum_phi_value=0.01, per_word_topics=True, callbacks=None, num_words=300, coherence='u_mass'):
         
         # start the time to check how many seconds it will take.
         start_time_1 = time.time()
@@ -317,39 +381,28 @@ class LDA_wrapper:
                                                     callbacks=callbacks)
 
         """ Write topic term matrix into file P(W/Z) """
-        topics = self.lda_model.show_topics(num_topics=num_topics,num_words=300,formatted=False)
+        topics = self.lda_model.show_topics(num_topics=num_topics,num_words=num_words,formatted=False)
         # in gensim, term in each topics are ordered in terms of their importance value for that topic
         self.save_topic_term_matrix(topics)
     
-        """Write document topic matrix into file P(D/Z)"""
-        doc_topic_mat = []
-        for bowd in corpus:
-            doc_topic_mat.append(self.lda_model.get_document_topics(bow=bowd, minimum_probability=0.000001))
-        self.save_doc_topic_matrix(doc_topic_mat, non_empty_doc_index)
+        # call the topic_by_doc_matrix functions
+        self.topic_by_doc_matrix(self.lda_model, corpus, non_empty_doc_index, id2word, minimum_probability)
 
         '''Topic Probability'''
-        self.topic_probability(corpus, self.lda_model, num_topics)
+        self.topic_probability(corpus, self.lda_model, num_topics, minimum_probability)
 
         ''' Write topic coherence of each topic in the corpus '''
-        #top_topics = self.lda_model.top_topics(corpus=corpus, topn=300, texts=texts, coherence="c_v")
-        top_topics = self.lda_model.top_topics(corpus=corpus, topn=300, texts=texts, coherence="u_mass")
+        # here we have two options for coherenece type(c_v or u_mass)
+        top_topics = self.lda_model.top_topics(corpus=corpus, topn=num_words, texts=texts, coherence=coherence)
         self.save_topic_coherence(top_topics)
 
-        '''to check that topic_by_term is conditional probability(their summation becomes 1)'''
-        term_probability = self.lda_model.get_topics()
-        v = 1
-        for topic in term_probability:
-            value = 0
-            for prob in topic:
-                value += prob
-            print("summation of all term probability in topic: ",v, " is ", value)
-            v +=1 
+        # document probability
+        self.document_probability(corpus, id2word)
 
-        """display total processing time took"""
+        """display total processing time took and write to file"""
         end_time_1 = time.time()
         total_training_time  = round((end_time_1 - start_time_1) / 60 , 4)
         print('Total training time took: ' + str(total_training_time) + ' minutes')
-
         with open(self.lda_parameters_path + self.unique_folder_naming + 'status.txt', 'w') as f:
             f.write('Topic analysis finished.\n')
             f.write(str(total_training_time))
@@ -361,7 +414,7 @@ def run_lda(path):
     print(path)
     
     npath = path.split(".")
-    print(npath)
+    #print(npath)
     # if the file is .json
     if npath[-1] == "json":
         with open(path, "r") as read_file:
@@ -387,7 +440,7 @@ def run_lda(path):
 
     s.write_to_json()
 
-    s.generate_topics_gensim(num_topics=2,passes=22,chunksize=200, per_word_topics=300)
+    s.generate_topics_gensim(num_topics=2,passes=22,chunksize=200, per_word_topics=True, num_words=300, coherence="u_mass")
     # s.generate_topics_gensim(num_topics=2,passes=22,chunksize=200)
     # s.generate_topics_gensim(num_topics=2,passes=100,chunksize=200,random_state=2)
 
