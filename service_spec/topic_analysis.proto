@@ -29,8 +29,21 @@ message LDARequest {
     repeated string docs = 1;
     sint64 num_topics = 2;
     sint64 topic_divider = 3;
-    sint64 maxiter = 4;
-    double beta = 5;
+    sint64 iterations = 4;
+    double minimum_probability = 5;
+    sint64 passes = 6;
+    sint64 chunksize = 7;
+    bool per_word_topics = 8;
+    sint64 num_words = 9;
+    double minimum_phi_value = 10;
+    string alpha = 11;
+    string eta = 12;
+    double decay = 13;
+    double gamma_threshold = 14;
+    string coherence = 15;
+    sint64 eval_every = 16;
+    sint64 update_every = 17;
+    double offset = 18;
 }
 
 message LDAResponse{
