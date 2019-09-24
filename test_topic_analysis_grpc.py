@@ -218,92 +218,53 @@ class TestTopicAnalysisGrpc(unittest.TestCase):
 
         resp2 = self.app.get('/topic-analysis/api/v1.0/results?handle='+resp.handle)
         resp2_data = json.loads(resp2.get_data(as_text=True))
+        
         print(';;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;')
 
-        print("sum of all topic probability given corpus: ", sum(resp2_data['topicProbabilities'][i] for i in range(self.num_topics)))
-
+        # -------------Status-----------------
+        # check whether the process is fully accomplished, if so the current status is 'Topic analysis finished' and time taken greater than 0.0
         self.assertEqual(resp2_data['status'],'Topic analysis finished.')
         self.assertGreater(resp2_data['total running time in minutes'],0.0)
-        self.assertEqual(len(resp2_data['topics']),self.num_topics)
-        for i in range(self.num_topics):self.assertIsInstance(resp2_data['topics'][i], str) 
-
-        #self.assertEqual(resp2_data['docs_list'], [str(i) for i in range(0,44)])
         
+
+        # ------------Documents--------------
+        # check the length of non-empty documents
+        print("Non-empty documents: ", len(resp2_data['documentProbabilities']))
+
+        # check the sum of document probabilities whether its 1 or not
+        print("sum of P(D): ", np.sum(np.asarray(resp2_data['documentProbabilities'], dtype=np.float32)))
+        self.assertAlmostEqual(np.sum(np.asarray(resp2_data['documentProbabilities'], dtype=np.float32)), 1.0, delta=0.1)
+                
+
+        # ------------Topics------------------
+        # check the datatype of all elements of the topics whether they are string or not(have to be string)
+        for i in range(self.num_topics):
+            self.assertIsInstance(resp2_data['topics'][i], str)
+
         # check the length of topics
         self.assertEqual(len(resp2_data['topicByDocMatirx']),self.num_topics)
-        # change the topic by doc matrix from list to numpy array, to add each of all the coloumn
-        topic_doc_array = np.asarray(resp2_data['topicByDocMatirx'], dtype=np.float32)
-        # add each of all the column, means all topic probability in each column and then assert with 1
-        #self.assertEqual(len(resp2_data['topicByDocMatirx'][0]),44)
-        #self.assertAlmostEqual(sum(sum(resp2_data['topicByDocMatirx'],[])),1.0,delta=0.1)
-        #print('sum of p(z,d)=',sum(sum(resp2_data['topicByDocMatirx'],[])))
-        
-        #self.assertAlmostEqual(resp2_data['topicProbabilities'][0]+ resp2_data['topicProbabilities'][1],1.0,delta=0.1)
-        self.assertAlmostEqual(sum(resp2_data['topicProbabilities'][i] for i in range(self.num_topics)), 1.0, delta=0.1)
-        
         self.assertEqual(len(resp2_data['wordByTopicConditional']), self.num_topics)
+        self.assertEqual(len(resp2_data['topics']),self.num_topics)
+    
+
+        # ------------Topic by Doc Matrix---------------    
+        # check if all the summation of topicByDoc probability is equal to one and its Joint Probability P(Z, D)
+        print('sum of p(Z,D)=',sum(sum(resp2_data['topicByDocMatirx'],[])))
+        self.assertAlmostEqual(sum(sum(resp2_data['topicByDocMatirx'],[])),1.0,delta=0.1)                
+
+
+        # ----------- Word by Topic Matrix----------
         # check the length of word in each topic with num_words given, but this cause an error,
         # if the number of vocabulary is less than the defined number of word per topic which is 300
-        #self.assertEqual(len(resp2_data['wordByTopicConditional'][0]), self.num_words)
-
-        #self.assertAlmostEqual(sum(sum(resp2_data['wordByTopicConditional'], [])), 1.0, delta=0.1)
-
-        # the problem of this is to test with one we need to sum up all the probability of 
-        # term in the dictionary but now we are summing up only the probability of 300 words 
-        #self.assertAlmostEqual(sum(resp2_data['wordByTopicConditional'][0]), 1.0, delta=0.1)
-
-        #print('sum of p(w|z)=',sum(sum(resp2_data['wordByTopicConditional'],[])))
+        self.assertEqual(len(resp2_data['wordByTopicConditional'][0]), self.num_words)
         
-        print('sum of p(w|z)=', sum(resp2_data['wordByTopicConditional'][0]), " (for only ", self.num_words, " Words )")
+        # check if the summation of wordByTopic probability distiribution in each row is 1 and its conditional P(W|Zi) 
+        # but the problem here is wordByTopic contains only the probability of 300 top words for that topic, 
+        # but actually that topics contains probability for all the words in dictionary. 
+        print('sum of p(W|Zi)=', sum(resp2_data['wordByTopicConditional'][0]), " (for only top ", self.num_words, " Words )")
+        self.assertAlmostEqual(sum(resp2_data['wordByTopicConditional'][0]), 1.0, delta=0.1)
         
-        '''
-        self.assertEqual(len(resp2_data['logLikelihoods']),23)
-        for i in range(0,23):
-            self.assertLess(resp2_data['logLikelihoods'][i],0)
-        '''
 
-        # Test for untokenized text input
-        print("\n\nLDA Test for untokenized text input\n")
-
-        lda_request = topic_analysis_pb2.LDARequest(docs=self.docs_2, num_topics=self.num_topics, maxiter=self.maxiter)
-
-        resp = self.stub.LDA(lda_request)
-
-        print('////////////// Sleeping till topic analysis finishes')
-        time.sleep(sleep_time_secs)
-        print('\\\\\\\\\\\\\\\\\\\\\\\\\\\\  Wide awake now')
-
-        self.assertEqual([resp.status,resp.message],[True,'success'])
-
-        resp2 = self.app.get('/topic-analysis/api/v1.0/results?handle='+resp.handle)
-        resp2_data = json.loads(resp2.get_data(as_text=True))
-        print(';;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;')
-
-        self.assertEqual(resp2_data['status'],'Topic analysis finished.')
-        self.assertGreater(resp2_data['total running time in minutes'],0.0)
-        self.assertEqual(len(resp2_data['topics']),self.num_topics)
-        for i in range(self.num_topics):self.assertIsInstance(resp2_data['topics'][i], str) 
-        
-        #self.assertEqual(resp2_data['docs_list'], [str(i) for i in range(0,98)])
-
-        self.assertEqual(len(resp2_data['topicByDocMatirx']),self.num_topics)
-        #self.assertEqual(len(resp2_data['topicByDocMatirx'][0]),98)
-        #self.assertAlmostEqual(sum(sum(resp2_data['topicByDocMatirx'],[])),1.0,delta=0.1)
-        #print('sum of p(z,d)=',sum(sum(resp2_data['topicByDocMatirx'],[])))
-        
-        self.assertAlmostEqual(sum(resp2_data['topicProbabilities'][i] for i in range(self.num_topics)), 1.0, delta=0.1)
-        
-        self.assertEqual(len(resp2_data['wordByTopicConditional']), self.num_topics)
-        #self.assertEqual(len(resp2_data['wordByTopicConditional'][0]), self.num_words)
-
-        #self.assertAlmostEqual(sum(sum(resp2_data['wordByTopicConditional'], [])), 1.0, delta=0.1)
-        #print('sum of p(w|z)=',sum(sum(resp2_data['wordByTopicConditional'],[])))
-        
-        '''
-        self.assertEqual(len(resp2_data['logLikelihoods']),23)
-        for i in range(0,23):
-            self.assertLess(resp2_data['logLikelihoods'][i],0)
-        '''
         print("\n\t\t####End of LDA Processing\n\n")
 
     def test_lsa_response_format_grpc(self):
@@ -325,7 +286,7 @@ class TestTopicAnalysisGrpc(unittest.TestCase):
         resp2_data = json.loads(resp2.get_data(as_text=True))
         print(';;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;')
         
-        #print("sum of all topic probability given corpus: ", sum(resp2_data['topicProbabilities'][i] for i in range(self.num_topics)))
+        #print("sum of P(Z): ", sum(resp2_data['topicProbabilities'][i] for i in range(self.num_topics)))
 
         self.assertEqual(resp2_data['status'],'Topic analysis finished.')
         self.assertGreater(resp2_data['total running time in minutes'],0.0)
