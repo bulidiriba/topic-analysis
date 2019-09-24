@@ -135,7 +135,7 @@ class LDA_wrapper:
 
             topic_term_file_2.write('\n')
 
-    def topic_by_doc_matrix(self, model, corpus, non_empty_doc_index, id2word, minimum_probability):
+    def topic_by_doc_matrix(self, model, corpus, non_empty_doc_index, minimum_probability):
         doc_topic_conditional_file = open(self.lda_parameters_path + self.unique_folder_naming + "topic-by-doc-conditional.csv", 'w')
         doc_topic_joint_file = open(self.lda_parameters_path + self.unique_folder_naming + "topic-by-doc-matirx.csv", 'w')
         
@@ -163,7 +163,7 @@ class LDA_wrapper:
         # p(z0, d0) = p(z0|d0) * p(d0)
        
         # call the document probability
-        doc_prob = self.document_probability(corpus, id2word)
+        doc_prob = self.document_probability(corpus)
         
         for topic in topic_by_doc:
             joint_topic_prob = []
@@ -218,20 +218,24 @@ class LDA_wrapper:
             topic_prob_file.write('\n')
         topic_prob_file.close()
 
-    def document_probability(self, corpus, id2word):
+    def document_probability(self, corpus):
         doc_prob_file = open(self.lda_parameters_path + self.unique_folder_naming + "document_probability", 'w')
         doc_prob = []
-        n_vocabulary = len(id2word) # the total number of vocabulary
+        
+        # counting all the total words in the corpus, this is some how bigger than the number of vocabulary 
+        # since one documents can contain duplicated words.
+        total_num_words_in_corpus = np.sum([len(doc) for doc in corpus])
+
         for document in corpus:
             # the total number of words in each document
             n_word_document = len(document)
-
-            # probability of each document = n_word_document / n_vocabulary
-            prob = n_word_document / n_vocabulary
+            
+            # probability of each document = n_word_document / total_num_words_in_corpus
+            prob = n_word_document / total_num_words_in_corpus
 
             doc_prob.append(prob)
 
-        #print("summation of all document probability")
+        #print("summation of all document probability(must be 1)")
         #print(np.sum(np.asarray(doc_prob, dtype=np.float32), axis=0))
         
         for d_prob in doc_prob:
@@ -386,7 +390,7 @@ class LDA_wrapper:
         self.save_topic_term_matrix(topics)
     
         # call the topic_by_doc_matrix functions
-        self.topic_by_doc_matrix(self.lda_model, corpus, non_empty_doc_index, id2word, minimum_probability)
+        self.topic_by_doc_matrix(self.lda_model, corpus, non_empty_doc_index, minimum_probability)
 
         '''Topic Probability'''
         self.topic_probability(corpus, self.lda_model, num_topics, minimum_probability)
@@ -395,9 +399,6 @@ class LDA_wrapper:
         # here we have two options for coherenece type(c_v or u_mass)
         top_topics = self.lda_model.top_topics(corpus=corpus, topn=num_words, texts=texts, coherence=coherence)
         self.save_topic_coherence(top_topics)
-
-        # document probability
-        self.document_probability(corpus, id2word)
 
         """display total processing time took and write to file"""
         end_time_1 = time.time()
