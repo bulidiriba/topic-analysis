@@ -90,23 +90,13 @@ class LDA_wrapper:
         pclean.output_dir = self.output_dir + self.unique_folder_naming
 
     def save_topic_term_matrix(self, topics):
-        topic_term_file = open(self.lda_parameters_path + self.unique_folder_naming + 'word_by_topic_conditional2.csv', 'w')
         topic_term = open(self.lda_parameters_path + self.unique_folder_naming + 'word_by_topic_conditional.csv', 'w')
         topic_term_file_2 = open(self.lda_parameters_path + self.unique_folder_naming + 'topics.txt', 'w')
         
-        # first lets save the topics with their words and the probability or imporatance value of each word for that topic
-        for topic in topics:
-            topic_term_file.write(str(topic))
-            topic_term_file.write('\n\n')
-        topic_term_file.close()
-
-        # second lets save only the terms of each topic, also take the destemmed form of the word from dictionary
-
         # discarde the terms label in the topics and extracts only the term probability
         extracted_prob = [[item[1] for item in topic[1]] for topic in topics]
 
         # save only the probability
-        #print(len(extracted_prob))
         for topic in extracted_prob:
             v = 0
             for prob in topic:
@@ -115,7 +105,6 @@ class LDA_wrapper:
             #print("value", v)
             topic_term.write('\n')
 
-        # print("length of ", len(extracted_prob[0]))
         # discard the probability of each term in the topics and extratracts only the term
         extracted_topics = [[item[0] for item in topic[1]] for topic in topics]
 
@@ -136,13 +125,12 @@ class LDA_wrapper:
             topic_term_file_2.write('\n')
 
     def topic_by_doc_matrix(self, model, corpus, non_empty_doc_index, minimum_probability):
-        doc_topic_conditional_file = open(self.lda_parameters_path + self.unique_folder_naming + "topic-by-doc-conditional.csv", 'w')
         doc_topic_joint_file = open(self.lda_parameters_path + self.unique_folder_naming + "topic-by-doc-matirx.csv", 'w')
         
-        doc_by_topic_mat = []  # matrix to store the doc by topic results returned by gensim library
-        extracted_prob = [] # matrix to extract only the probability from the doc_by_topic_mat
-        topic_by_doc =[] # matrix to store the transpose of above probability
-        topic_by_doc_joint = [] # matrix to store the joint probability of topic by doc
+        doc_by_topic_mat = []  # matrix to store the conditional probability of topic distribution in the given documents(topic_id, prob)
+        extracted_prob = [] # matrix to extract only the conditional probability by removing the topic_id
+        topic_by_doc =[] # matrix to store the transpose of above extracted conditional probability
+        topic_by_doc_joint = [] # matrix to store the joint probability of topic and doc
 
         # return the result from gensim functions get_document_topics
         for bowd in corpus:
@@ -154,12 +142,7 @@ class LDA_wrapper:
         # transpose the probability distributions to change it in the same format with PLSA topic_by_doc_matrix.
         topic_by_doc = [list(i) for i in zip(*extracted_prob)]
 
-        # to check that the probability summation of all topic in a given document is 1 or not.
-        #print("summation of all topic probability in each document is")
-        #print(np.sum(np.asarray(topic_by_doc, dtype=np.float32), axis=0))
-
-        
-        # calculate the Joint Probability of each documents and each topics
+        # calculate the Joint Probability of each documents and each topics, since the returned answer is the Conditional Probability
         # p(z0, d0) = p(z0|d0) * p(d0)
        
         # call the document probability
@@ -175,28 +158,12 @@ class LDA_wrapper:
         #print("summation of joint probability of topic and document is")
         #print(np.sum(np.sum(np.asarray(topic_by_doc_joint, dtype=np.float32), axis=0)))
 
-
-        # then now write to file, first write the index of non_empty_doc, then the conditional probability of each topic in this non_empty_doc
+        # then now write to file, first write the index of non_empty_doc, then the joint probability of all topics and documents
         
         #  write the non_empty_doc_index to the file
         for indx in non_empty_doc_index:
-            doc_topic_conditional_file.write(","+str(indx))
             doc_topic_joint_file.write(","+str(indx))
-        doc_topic_conditional_file.write("\n")
         doc_topic_joint_file.write("\n")
-
-       
-        # then write the conditional probability of each topic in the given documents.       
-        for topic in topic_by_doc:
-            doc_topic_conditional_file.write(str(topic_by_doc.index(topic))+",")
-            for doc in topic:
-                if(topic.index(doc) != len(topic) - 1):
-                    doc_topic_conditional_file.write(str(doc)+",")
-                else:
-                    doc_topic_conditional_file.write(str(doc))
-
-            doc_topic_conditional_file.write('\n')
-        doc_topic_conditional_file.close()
 
         # then write the Joint probability of each topic and each document.       
         for topic in topic_by_doc_joint:
