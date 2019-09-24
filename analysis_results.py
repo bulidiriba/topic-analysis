@@ -66,6 +66,8 @@ def results():
         topic_by_doc = []
         word_by_topic_conditional = []
         docs_list = []
+        topic_probabilities = []
+        document_probability = []
         
         with open(parameters_path + 'topic-by-doc-matirx.csv') as csv_file:
             csv_reader = csv.reader(csv_file, delimiter=',')
@@ -76,9 +78,6 @@ def results():
                 topic_by_doc.append(list((np.array(row[1:])).astype(np.float)))
       
        
-        print("\nSummation of all joint probability in topic_by_doc_matrix")
-        print(np.sum(np.sum(np.asarray(topic_by_doc, dtype=np.float32), axis=0)))
-
         with open(parameters_path + 'topic_probability_pz', 'r') as f:
             topic_probabilities = f.read().splitlines()
             topic_probabilities = list((np.array(topic_probabilities)).astype(np.float))
@@ -94,12 +93,12 @@ def results():
                 logLikelihoods = f.read().splitlines()
 
                 logLikelihoods = list((np.array(logLikelihoods)).astype(np.float))
-            
         
-        b = np.asarray(word_by_topic_conditional, dtype=np.float32)
-        print("\nSummation of all word probability in each topics")
-        print(np.sum(b, axis=1))
-
+        if (method_type == 'lta'):
+            with open(parameters_path + 'document_probability', 'r') as f:
+                document_probability = f.read().splitlines()
+                document_probability = list((np.array(document_probability)).astype(np.float))
+        
         resp = {}
         resp['status'] = status[0]
         resp['total running time in minutes'] = float(status[1])
@@ -111,6 +110,9 @@ def results():
         
         if (method_type == 'plsa'):
             resp['logLikelihoods'] = logLikelihoods
+
+        if (method_type == 'lta'):
+            resp['documentProbabilities'] = document_probability
 
         return make_response(jsonify(resp), 200)
 
